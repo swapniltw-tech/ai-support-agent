@@ -1,0 +1,41 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local data and runtime state (docker volumes, local DBs, eval outputs)
+*.sqlite
+*.sqlite3
+*.db
+.data/
+volumes/
+qdrant_storage/
+evals/results/
+logs/
+*.log
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code local settings (keep shared .claude/settings.json and CLAUDE.md)
+.claude/settings.local.json

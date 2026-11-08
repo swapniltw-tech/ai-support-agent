@@ -1,0 +1,50 @@
+# Secrets — must never end up in an image
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# VCS and docs (not needed at runtime)
+.git
+.gitignore
+learning/
+docs/
+*.md
+!README.md
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Tooling caches and tests
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+tests/
+
+# Local data and runtime state
+*.sqlite
+*.sqlite3
+*.db
+.data/
+volumes/
+qdrant_storage/
+evals/results/
+logs/
+*.log
+
+# Docker files themselves, editors, OS
+Dockerfile*
+docker-compose*.yml
+.DS_Store
+.idea/
+.vscode/
+.claude/
