@@ -1,5 +1,6 @@
 from policypal.config import Settings
 
+
 def test_settings_reads_values(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("ANTHROPIC_MODEL", "some-model")
