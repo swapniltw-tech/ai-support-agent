@@ -10,7 +10,7 @@ def main():
     response = client.messages.create(
         model=settings.anthropic_model,
         max_tokens=100,
-        messages=[{"role": "user", "content": "Say hi in five words in 5 languages"}],
+        messages=[{"role": "user", "content": "Say hi in five words in 2 languages"}],
     )
     for block in response.content:
         print(f"[{block.type}]")          # temporary: shows what came back
