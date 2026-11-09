@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ai-support-agent-network
+  hello-world:
+    build: .
+    container_name: hello-world
+    env_file: .env
+    networks:
+      - ai-support-agent-network
+    depends_on:
+      - redis
+
+networks:
+  ai-support-agent-network:

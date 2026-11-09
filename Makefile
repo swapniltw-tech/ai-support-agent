@@ -5,7 +5,7 @@
 UV_RUN := uv run
 ENV_RUN := uv run --env-file .env
 
-.PHONY: help install run test lint format check clean
+.PHONY: help install run test lint typecheck format check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -23,12 +23,15 @@ lint: ## Lint with ruff (no changes)
 	$(UV_RUN) ruff check .
 	$(UV_RUN) ruff format --check .
 
+typecheck: ## Static type check with mypy
+	$(UV_RUN) mypy
+
 format: ## Auto-fix lint issues and format code
 	$(UV_RUN) ruff check --fix .
 	$(UV_RUN) ruff format .
 
-check: lint test ## Everything to run before a commit
+check: lint typecheck test ## Everything to run before a commit
 
 clean: ## Remove caches and build artifacts
-	rm -rf .pytest_cache .ruff_cache build dist
+	rm -rf .pytest_cache .ruff_cache .mypy_cache build dist
 	find . -type d -name __pycache__ -not -path './.venv/*' -prune -exec rm -rf {} +

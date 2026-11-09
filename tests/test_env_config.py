@@ -1,7 +1,9 @@
+import pytest
+
 from policypal.config import Settings
 
 
-def test_settings_reads_values(monkeypatch):
+def test_settings_reads_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.setenv("ANTHROPIC_MODEL", "some-model")
     s = Settings(_env_file=None)
