@@ -2,7 +2,8 @@ import asyncio
 import time
 from pathlib import Path
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, Omit, omit
+from anthropic.types import ThinkingConfigAdaptiveParam
 from pydantic import BaseModel
 
 from policypal.config import get_settings
@@ -27,14 +28,14 @@ client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
 async def ask(
     question: str, *, system: str | None = None, thinking: bool = False
 ) -> LLMResult:
-    kwargs = {}
     t0 = time.perf_counter()
     inMessages = [
         {"role": "user", "content": question},
     ]
 
-    if thinking:
-        kwargs["thinking"] = {"type": "adaptive"}
+    thinking_cfg: ThinkingConfigAdaptiveParam | Omit = (
+        {"type": "adaptive"} if thinking else omit
+    )
 
     outMessage = await client.messages.create(
         max_tokens=1000,
@@ -44,7 +45,7 @@ async def ask(
         output_config={
             "effort": "low"  # Options: "low", "medium", "high", "xhigh", "max"
         },
-        **kwargs,
+        thinking=thinking_cfg,
     )
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
@@ -52,7 +53,9 @@ async def ask(
     if outMessage.stop_reason == "max_tokens":
         print("Warning: response truncated due to max_tokens limit.")
 
-    # print(outMessage.content)
+    print(
+        f"usage is {outMessage.usage if outMessage.usage else 'No usage info available.'}"
+    )
     text = "".join(b.text for b in outMessage.content if b.type == "text")
     return LLMResult(
         text=text,
