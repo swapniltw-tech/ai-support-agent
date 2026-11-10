@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from anthropic import AsyncAnthropic, Omit, omit
-from anthropic.types import ThinkingConfigAdaptiveParam
+from anthropic.types import Message, MessageParam, ThinkingConfigAdaptiveParam
 from pydantic import BaseModel
 
 from policypal.config import get_settings
@@ -29,7 +29,7 @@ async def ask(
     question: str, *, system: str | None = None, thinking: bool = False
 ) -> LLMResult:
     t0 = time.perf_counter()
-    inMessages = [
+    inMessages: list[MessageParam] = [
         {"role": "user", "content": question},
     ]
 
@@ -37,7 +37,7 @@ async def ask(
         {"type": "adaptive"} if thinking else omit
     )
 
-    outMessage = await client.messages.create(
+    outMessage: Message = await client.messages.create(
         max_tokens=1000,
         messages=inMessages,
         model=settings.anthropic_model,
