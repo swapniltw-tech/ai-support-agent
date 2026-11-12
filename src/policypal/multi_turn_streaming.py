@@ -1,9 +1,10 @@
 import asyncio
+import logging
 import time
 from pathlib import Path
 
-from anthropic import AsyncAnthropic, Omit, omit
 import anthropic
+from anthropic import AsyncAnthropic, Omit, omit
 from anthropic.types import MessageParam, ThinkingConfigAdaptiveParam
 from pydantic import BaseModel
 
@@ -20,11 +21,13 @@ class LLMResult(BaseModel):
     usage: str | None = None
 
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 
 system_prompt = (Path(__file__).parent / "prompts" / "system.md").read_text()
 
-client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value()+"x")
+client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
 
 async def ask(
@@ -56,7 +59,7 @@ async def ask(
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
     if outMessage.stop_reason == "max_tokens":
-        print("Warning: response truncated due to max_tokens limit.")
+        logger.warning("Response truncated at max_tokens (model=%s)", outMessage.model)
 
     text = "".join(b.text for b in outMessage.content if b.type == "text")
     return LLMResult(
@@ -82,27 +85,35 @@ async def main() -> None:
         try:
             result = await ask(conversation_history)
         except anthropic.RateLimitError:
-            print("\n[error] Rate limited. Wait a bit and try again.")
+            logger.warning("Rate limited. Wait a bit and try again.")
             conversation_history.pop()
             continue
         except anthropic.APIConnectionError as e:
-            print(f"\n[error] Can't reach the API: {e.__cause__}")
+            logger.error("Can't reach the API: %s", e.__cause__)
             conversation_history.pop()
             continue
         except anthropic.APIStatusError as e:
             # Covers 401 bad key, 404 bad model, 400 bad request, 5xx, etc.
-            print(f"\n[error] API returned {e.status_code}: {e.message}")
+            logger.error("API returned %s: %s", e.status_code, e.message)
             conversation_history.pop()
             continue
 
         assistant_reply = result.text
-        # Text was already streamed inside ask(); just show usage here.
-        print(
-            f"[{result.input_tokens} in / {result.output_tokens} out, {result.latency_ms} ms]"
+        # Text was already streamed inside ask(); just log usage here.
+        logger.info(
+            "tokens in=%d out=%d latency_ms=%d stop=%s",
+            result.input_tokens,
+            result.output_tokens,
+            result.latency_ms,
+            result.stop_reason,
         )
 
         conversation_history.append({"role": "assistant", "content": assistant_reply})
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     asyncio.run(main())
