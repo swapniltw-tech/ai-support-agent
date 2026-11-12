@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 from anthropic import AsyncAnthropic, Omit, omit
+import anthropic
 from anthropic.types import MessageParam, ThinkingConfigAdaptiveParam
 from pydantic import BaseModel
 
@@ -23,7 +24,7 @@ settings = get_settings()
 
 system_prompt = (Path(__file__).parent / "prompts" / "system.md").read_text()
 
-client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
+client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value()+"x")
 
 
 async def ask(
@@ -78,7 +79,21 @@ async def main() -> None:
             break
 
         conversation_history.append({"role": "user", "content": user_input})
-        result = await ask(conversation_history)
+        try:
+            result = await ask(conversation_history)
+        except anthropic.RateLimitError:
+            print("\n[error] Rate limited. Wait a bit and try again.")
+            conversation_history.pop()
+            continue
+        except anthropic.APIConnectionError as e:
+            print(f"\n[error] Can't reach the API: {e.__cause__}")
+            conversation_history.pop()
+            continue
+        except anthropic.APIStatusError as e:
+            # Covers 401 bad key, 404 bad model, 400 bad request, 5xx, etc.
+            print(f"\n[error] API returned {e.status_code}: {e.message}")
+            conversation_history.pop()
+            continue
 
         assistant_reply = result.text
         # Text was already streamed inside ask(); just show usage here.
