@@ -1,12 +1,15 @@
 import asyncio
 import time
+import uuid
 from pathlib import Path
 
 from anthropic import AsyncAnthropic, Omit, omit
 from anthropic.types import Message, MessageParam, ThinkingConfigAdaptiveParam
+from langfuse import propagate_attributes
 from pydantic import BaseModel
 
 from policypal.config import get_settings
+from policypal.observability import init_observability, observe
 
 
 class LLMResult(BaseModel):
@@ -21,11 +24,14 @@ class LLMResult(BaseModel):
 
 settings = get_settings()
 
+langfuse = init_observability()
+
 system_prompt = (Path(__file__).parent / "prompts" / "system.md").read_text()
 
 client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
 
+@observe()
 async def ask(
     messages: list[MessageParam], *, system: str | None = None, thinking: bool = False
 ) -> LLMResult:
@@ -69,6 +75,7 @@ async def ask(
 
 async def main() -> None:
     conversation_history = list[MessageParam]()
+    session_id = f"cli-{uuid.uuid4().hex[:8]}"  # one per chat session
 
     while True:
         user_input = input("Enter your question (or 'exit' to quit): ")
@@ -76,10 +83,11 @@ async def main() -> None:
             break
 
         conversation_history.append({"role": "user", "content": user_input})
-        result = await ask(
-            conversation_history,
-            system="You are a helpful assistant that translates text into multiple languages.",
-        )
+        with propagate_attributes(session_id=session_id, user_id="demo-user"):
+            result = await ask(
+                conversation_history,
+                system="You are a helpful assistant that translates text into multiple languages.",
+            )
 
         assistant_reply = result.text
         print(
@@ -88,6 +96,9 @@ async def main() -> None:
         )
 
         conversation_history.append({"role": "assistant", "content": assistant_reply})
+        langfuse.flush()
+
+    langfuse.shutdown()
 
 
 if __name__ == "__main__":

@@ -1,14 +1,17 @@
 import asyncio
 import logging
 import time
+import uuid
 from pathlib import Path
 
 import anthropic
 from anthropic import AsyncAnthropic, Omit, omit
 from anthropic.types import MessageParam, ThinkingConfigAdaptiveParam
+from langfuse import propagate_attributes
 from pydantic import BaseModel
 
 from policypal.config import get_settings
+from policypal.observability import init_observability, observe
 
 
 class LLMResult(BaseModel):
@@ -24,12 +27,14 @@ class LLMResult(BaseModel):
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+langfuse = init_observability()
 
 system_prompt = (Path(__file__).parent / "prompts" / "system.md").read_text()
 
 client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
 
+@observe()
 async def ask(
     messages: list[MessageParam], *, system: str | None = None, thinking: bool = False
 ) -> LLMResult:
@@ -75,7 +80,7 @@ async def ask(
 
 async def main() -> None:
     conversation_history = list[MessageParam]()
-
+    session_idz = f"cli-{uuid.uuid4().hex[:8]}"   # one per chat session
     while True:
         user_input = input("Enter your question (or 'exit' to quit): ")
         if user_input.lower() == "exit":
@@ -83,7 +88,8 @@ async def main() -> None:
 
         conversation_history.append({"role": "user", "content": user_input})
         try:
-            result = await ask(conversation_history)
+            with propagate_attributes(session_id=session_idz, user_id="demo-user"):
+                result = await ask(conversation_history)
         except anthropic.RateLimitError:
             logger.warning("Rate limited. Wait a bit and try again.")
             conversation_history.pop()
@@ -109,6 +115,8 @@ async def main() -> None:
         )
 
         conversation_history.append({"role": "assistant", "content": assistant_reply})
+        langfuse.flush()
+    langfuse.shutdown()
 
 
 if __name__ == "__main__":

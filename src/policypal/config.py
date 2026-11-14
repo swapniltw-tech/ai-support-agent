@@ -9,6 +9,9 @@ class Settings(BaseSettings):
 
     anthropic_api_key: SecretStr
     anthropic_model: str
+    langfuse_secret_key: SecretStr
+    langfuse_public_key: SecretStr
+    langfuse_base_url: str
 
 
 @lru_cache
